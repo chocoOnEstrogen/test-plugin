@@ -1,6 +1,4 @@
-mod flux;
-
-use flux::FluxPlugin;
+use flux::plugin::FluxPlugin;
 
 #[derive(Default)]
 pub struct ExamplePlugin {
@@ -26,6 +24,7 @@ impl FluxPlugin for ExamplePlugin {
             ("add", "Add two numbers: add <num1> <num2>"),
             ("sub", "Subtract two numbers: sub <num1> <num2>"),
             ("mul", "Multiply two numbers: mul <num1> <num2>"),
+            ("div", "Divide two numbers: div <num1> <num2>"),
             ("help", "Show this help message"),
         ]
     }
@@ -41,6 +40,12 @@ impl FluxPlugin for ExamplePlugin {
             Some("add") => self.handle_math(args, |a, b| a + b, "+"),
             Some("sub") => self.handle_math(args, |a, b| a - b, "-"),
             Some("mul") => self.handle_math(args, |a, b| a * b, "*"),
+            Some("div") => self.handle_math(args, |a, b| {
+                if b == 0 {
+                    return Err("Division by zero!".to_string());
+                }
+                Ok(a / b)
+            }, "/"),
             Some("help") => {
                 println!("{}", self.help());
                 Ok(())
@@ -64,18 +69,24 @@ impl FluxPlugin for ExamplePlugin {
 impl ExamplePlugin {
     fn handle_math<F>(&self, args: &[String], op: F, symbol: &str) -> Result<(), String>
     where
-        F: Fn(i64, i64) -> i64
+        F: Fn(i64, i64) -> Result<i64, String>
     {
         if args.len() != 3 {
             return Err(format!("Usage: {} {} <num1> <num2>", self.name(), args[0]));
         }
         
-        let num1: i64 = args[1].parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
-        let num2: i64 = args[2].parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
-        let result = op(num1, num2);
+        let num1: i64 = args[1].parse()
+            .map_err(|e: std::num::ParseIntError| e.to_string())?;
+        let num2: i64 = args[2].parse()
+            .map_err(|e: std::num::ParseIntError| e.to_string())?;
         
-        println!("{} {} {} = {}", num1, symbol, num2, result);
-        Ok(())
+        match op(num1, num2) {
+            Ok(result) => {
+                println!("{} {} {} = {}", num1, symbol, num2, result);
+                Ok(())
+            }
+            Err(e) => Err(e)
+        }
     }
 }
 
@@ -89,8 +100,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn test_add() {
+        let plugin = ExamplePlugin::default();
+        let args = vec!["add".to_string(), "5".to_string(), "3".to_string()];
+        assert!(plugin.execute(&args).is_ok());
     }
-}
+
+    #[test]
+    fn test_div_by_zero() {
+        let plugin = ExamplePlugin::default();
+        let args = vec!["div".to_string(), "5".to_string(), "0".to_string()];
+        assert!(plugin.execute(&args).is_err());
+    }
+} 
