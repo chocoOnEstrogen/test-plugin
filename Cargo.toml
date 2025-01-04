@@ -7,4 +7,4 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-flux = { git = "https://github.com/chocoOnEstrogen/flux" }
+flux = { git = "https://github.com/chocoOnEstrogen/flux", branch = "dev" }
